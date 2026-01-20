@@ -1,0 +1,132 @@
+PROMPT START
+
+You are building a hackathon-winning full-stack dApp for the Linera Microchains hackathon.
+
+Product
+
+Build CricChain: a real-time “cricket prediction market / live match predictions” demo with microchains.
+Users can:
+
+Create a prediction (question + options + close time)
+
+Vote on an option (on-chain)
+
+See live updates (real-time UI)
+
+See outcome + final stats after close time
+
+View “My Predictions” and “My Votes” dashboard
+
+Admin tools (optional): close prediction, resolve outcome
+
+MUST-HAVE Hackathon Requirements
+
+Working demo with no broken links and no “doesn’t connect to testnet” issues.
+
+Linera integration is real: read/write calls to a deployed Linera application (Conway testnet).
+
+If real chain connection fails, implement a demo-safe fallback:
+
+“Mock Mode” switch that runs the same UI against a local in-memory API so the demo never breaks.
+
+Show a clear banner: “Mock Mode / On-chain Mode”
+
+Must be deployable on Vercel with zero configuration errors.
+
+Provide a clean README with step-by-step instructions and troubleshooting.
+
+Provide a Submission Kit folder:
+
+SUBMISSION.md (what it does, problem, solution, how it works, Linera usage, architecture, roadmap)
+
+DEMO_SCRIPT.md (2–3 min judge demo script)
+
+PITCH.md (short pitch)
+
+screenshots/ placeholders
+
+Tech Constraints
+
+Use Next.js 14+ (App Router), TypeScript, TailwindCSS, shadcn/ui, Framer Motion, lucide-react.
+
+Use clean architecture:
+
+/app UI
+
+/lib linera client wrapper + API adapter
+
+/app/api route handlers (server)
+
+Do NOT require Linera CLI for the demo to run.
+
+All config must come from environment variables:
+
+NEXT_PUBLIC_APP_ID
+
+NEXT_PUBLIC_FAUCET_URL default to https://faucet.testnet-conway.linera.net
+
+UI/UX Quality (must look premium)
+
+Home landing with hero, tagline, animated cards, and “Connect & Start” CTA
+
+Dashboard layout (left sidebar + main content)
+
+Prediction creation wizard (stepper)
+
+Live predictions list with filters (Live / Closing Soon / Resolved)
+
+Each prediction has a detail page with:
+
+option cards
+
+vote button
+
+vote distribution chart
+
+activity feed (“new vote came in…”)
+
+Use tasteful gradients, spacing, responsive design, dark mode.
+
+Include loading skeletons, toasts, empty states, error states.
+
+Add small “wow factor”: micro-animations, transitions, real-time update feel.
+
+Linera Integration Approach
+
+Implement a wrapper lib/linera.ts that:
+
+Initializes the Linera web client safely (browser-only, SSR safe).
+
+Exposes functions:
+
+createPrediction(question, options, closeTime)
+
+listPredictions()
+
+getPrediction(id)
+
+vote(predictionId, optionIndex)
+
+resolve(predictionId, winningOption)
+
+These should call the smart contract via Linera client (GraphQL or supported web client calls).
+
+If connection fails, automatically switch to Mock Mode and keep app functional.
+
+Deliverables
+
+Working app with npm install && npm run dev
+
+npm run build must pass (Vercel safe)
+
+Add vercel.json only if necessary
+
+Add .env.example
+
+Add robust error handling and logs
+
+Provide sample seed predictions in Mock Mode so UI looks full on first run
+
+Create the entire project in the current Replit workspace. Ensure no missing imports, no broken routes, no build-time errors.
+
+PROMPT END

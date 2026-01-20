@@ -1,0 +1,148 @@
+I already have an existing Next.js + TypeScript project called LineraMarkets.
+Do NOT create a new project.
+Do NOT refactor everything.
+Only modify and add code where necessary.
+
+My goals are:
+
+1) Fix broken buttons (required)
+
+Launch App button
+
+When clicked, route to /markets
+
+If the user is not connected:
+
+Open a Connect Modal
+
+Allow connecting a Mock Wallet
+
+After connecting, redirect to /markets
+
+Read Whitepaper button
+
+Route to /whitepaper (internal page, not external)
+
+Add a Download PDF button that serves /public/whitepaper.pdf
+
+2) Fix the “Failed to create prediction” error (critical)
+
+Right now, clicking Launch Market shows:
+
+Error: Failed to create prediction
+
+Fix this reliably.
+
+Backend
+
+Ensure POST /api/markets/create exists
+
+Validate:
+
+question (string, min 10 chars)
+
+options (array, length ≥ 2, no empty strings)
+
+closeTime (future timestamp)
+
+creatorId
+
+Return proper JSON errors (400) instead of crashing
+
+Ensure database tables exist (Prisma + SQLite)
+
+Frontend
+
+Disable submit while loading
+
+Show spinner
+
+Show backend error message (not generic)
+
+Prevent submit if inputs are invalid
+
+On success:
+
+Redirect to /markets/[id]
+
+Show toast: “Market successfully created”
+
+Market should appear immediately in Markets list
+
+Never silently fail.
+
+3) Add full prediction market lifecycle (incremental)
+
+Extend the existing logic (do not rewrite everything):
+
+Market states:
+
+OPEN → CLOSED → RESOLVED → FINALIZED
+
+Allow users to:
+
+Create markets
+
+Place positions (stake mock points)
+
+See live odds update
+
+Claim rewards after resolution
+
+Use mock data / local DB only.
+
+4) Mock Mode + Linera Adapter (non-blocking)
+
+Add a banner:
+
+“MOCK MODE ACTIVE — Linera adapter disabled”
+
+Add a file lib/lineraAdapter.ts with stub methods:
+
+createMarket
+
+placePosition
+
+resolveMarket
+
+These functions should never block the app
+
+Mock mode must work even if Linera is not installed
+
+5) Whitepaper page content
+
+Create /whitepaper page with these sections:
+
+Abstract
+
+Problem
+
+Solution
+
+How It Works (market lifecycle)
+
+Dispute & Resolution
+
+Security Model
+
+Why Linera Microchains
+
+Roadmap
+
+Demo Notes (Mock vs Linera)
+
+Content must match what the demo actually does.
+
+Important rules
+
+Keep existing UI and styling
+
+Do not introduce breaking changes
+
+Do not trigger autonomous workflows
+
+Focus on reliability over new features
+
+App must run cleanly on Replit
+
+Work step by step and explain changes briefly as you apply them.
