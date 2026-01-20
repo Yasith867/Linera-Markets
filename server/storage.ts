@@ -4,12 +4,21 @@ import {
   marketOptions,
   positions,
   users,
-  type Market,
   type MarketOption,
   type Position,
   type User,
 } from "@shared/schema";
 import { eq, desc, and } from "drizzle-orm";
+
+function parseUser(u: User): User {
+  return {
+    ...u,
+    holdings:
+      typeof u.holdings === "string"
+        ? JSON.parse(u.holdings)
+        : u.holdings,
+  };
+}
 
 export class DatabaseStorage {
   /* =========================
@@ -22,7 +31,7 @@ export class DatabaseStorage {
       .from(users)
       .where(eq(users.address, address));
 
-    if (existing) return existing;
+    if (existing) return parseUser(existing);
 
     const [user] = await db
       .insert(users)
@@ -30,11 +39,11 @@ export class DatabaseStorage {
         address,
         balance: "1000.000000",
         reputation: 100,
-        holdings: JSON.stringify({}), // ✅ FIX
+        holdings: JSON.stringify({}),
       })
       .returning();
 
-    return user;
+    return parseUser(user);
   }
 
   async getUser(address: string): Promise<User | undefined> {
@@ -42,7 +51,8 @@ export class DatabaseStorage {
       .select()
       .from(users)
       .where(eq(users.address, address));
-    return user;
+
+    return user ? parseUser(user) : undefined;
   }
 
   /* =========================
@@ -141,7 +151,6 @@ export class DatabaseStorage {
       throw new Error("Insufficient balance");
     }
 
-    // Deduct balance
     const newBalance = (
       Number(user.balance) - Number(data.amount)
     ).toFixed(6);
@@ -151,7 +160,6 @@ export class DatabaseStorage {
       .set({ balance: newBalance })
       .where(eq(users.address, data.userAddress));
 
-    // ✅ FIX: explicit insert (NO spread)
     const [p] = await db
       .insert(positions)
       .values({
@@ -164,7 +172,6 @@ export class DatabaseStorage {
       })
       .returning();
 
-    // Update option stake
     const [o] = await db
       .select()
       .from(marketOptions)
@@ -181,7 +188,6 @@ export class DatabaseStorage {
         .where(eq(marketOptions.id, data.optionId));
     }
 
-    // Update market liquidity
     const [m] = await db
       .select()
       .from(markets)
@@ -218,13 +224,11 @@ export class DatabaseStorage {
       .where(eq(positions.marketId, marketId));
 
     for (const pos of marketPositions) {
-      const newStatus =
-        pos.optionId === winningOptionId ? "won" : "lost";
-
       await db
         .update(positions)
         .set({
-          status: newStatus,
+          status:
+            pos.optionId === winningOptionId ? "won" : "lost",
           settledAt: new Date(),
         })
         .where(eq(positions.id, pos.id));
@@ -265,7 +269,6 @@ export class DatabaseStorage {
     const winningPool = Number(winningOption?.totalStaked || 1);
 
     let payoutTotal = 0;
-
     for (const p of winners) {
       payoutTotal += (Number(p.amount) / winningPool) * totalPool;
     }
