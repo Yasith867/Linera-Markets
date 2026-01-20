@@ -1,4 +1,7 @@
-import "dotenv/config";
+// Load .env only locally (Vercel provides env vars automatically)
+if (process.env.NODE_ENV !== "production") {
+  await import("dotenv/config");
+}
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
@@ -53,7 +56,6 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
       log(logLine);
     }
   });
@@ -61,9 +63,9 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
-  // ✅ Correct argument order: (httpServer, app)
-  await registerRoutes(httpServer, app);
+async function bootstrap() {
+  // ✅ IMPORTANT: your routes file expects (app, httpServer)
+  await registerRoutes(app, httpServer);
 
   // Error handler (keep after routes)
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -72,10 +74,7 @@ app.use((req, res, next) => {
 
     console.error("Internal Server Error:", err);
 
-    if (res.headersSent) {
-      return next(err);
-    }
-
+    if (res.headersSent) return next(err);
     return res.status(status).json({ message });
   });
 
@@ -87,17 +86,18 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
-})();
+  // ✅ ONLY listen locally. Vercel will provide a serverless handler.
+  if (!process.env.VERCEL) {
+    const port = parseInt(process.env.PORT || "5000", 10);
+    httpServer.listen(
+      { port, host: "0.0.0.0", reusePort: true },
+      () => log(`serving on port ${port}`),
+    );
+  }
+}
+
+// Run bootstrap immediately
+await bootstrap();
 
 export { app, httpServer };
+export default app;
