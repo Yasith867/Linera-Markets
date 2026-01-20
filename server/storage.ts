@@ -10,6 +10,10 @@ import {
 } from "@shared/schema";
 import { eq, desc, and } from "drizzle-orm";
 
+/**
+ * Normalize DB user → runtime user
+ * (handles JSON stored as text)
+ */
 function parseUser(u: User): User {
   return {
     ...u,
@@ -237,7 +241,10 @@ export class DatabaseStorage {
     return m;
   }
 
-  async claimPayout(marketId: number, userAddress: string): Promise<string> {
+  async claimPayout(
+    marketId: number,
+    userAddress: string
+  ): Promise<string> {
     const market = await this.getMarket(marketId);
     if (!market || market.status !== "resolved") {
       throw new Error("Market not resolved");
