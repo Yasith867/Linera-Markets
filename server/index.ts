@@ -1,7 +1,4 @@
-// Load .env only locally (Vercel provides env vars automatically)
-if (process.env.NODE_ENV !== "production") {
-  await import("dotenv/config");
-}
+import "dotenv/config";
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
@@ -34,14 +31,13 @@ export function log(message: string, source = "express") {
     second: "2-digit",
     hour12: true,
   });
-
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  let capturedJsonResponse: Record<string, any> | undefined;
 
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
@@ -53,9 +49,7 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
+      if (capturedJsonResponse) logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       log(logLine);
     }
   });
@@ -63,22 +57,17 @@ app.use((req, res, next) => {
   next();
 });
 
-async function bootstrap() {
-  // ✅ IMPORTANT: your routes file expects (app, httpServer)
-  await registerRoutes(app, httpServer);
+(async () => {
+  await registerRoutes(httpServer, app);
 
-  // Error handler (keep after routes)
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
-    console.error("Internal Server Error:", err);
-
+    console.error(err);
     if (res.headersSent) return next(err);
     return res.status(status).json({ message });
   });
 
-  // Serve static in production; Vite in dev
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
@@ -86,18 +75,10 @@ async function bootstrap() {
     await setupVite(httpServer, app);
   }
 
-  // ✅ ONLY listen locally. Vercel will provide a serverless handler.
-  if (!process.env.VERCEL) {
-    const port = parseInt(process.env.PORT || "5000", 10);
-    httpServer.listen(
-      { port, host: "0.0.0.0", reusePort: true },
-      () => log(`serving on port ${port}`),
-    );
-  }
-}
-
-// Run bootstrap immediately
-await bootstrap();
+  const port = parseInt(process.env.PORT || "5000", 10);
+  httpServer.listen({ port, host: "0.0.0.0", reusePort: true }, () => {
+    log(`serving on port ${port}`);
+  });
+})();
 
 export { app, httpServer };
-export default app;
