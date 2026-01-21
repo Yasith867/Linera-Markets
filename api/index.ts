@@ -3,13 +3,12 @@ import express, { type Request } from "express";
 import { createServer } from "http";
 import { registerRoutes } from "../server/routes";
 
-// Optional: load .env only when not on Vercel production
+// Load dotenv only locally (optional)
 if (process.env.NODE_ENV !== "production") {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   require("dotenv/config");
 }
 
-// Create express app once (reused between requests)
 const app = express();
 const httpServer = createServer(app);
 
@@ -19,7 +18,6 @@ declare module "http" {
   }
 }
 
-// Match your original middleware (important!)
 app.use(
   express.json({
     verify: (req: Request, _res, buf) => {
@@ -30,11 +28,11 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
-// Setup routes ONCE
+// Setup routes once
 const ready = (async () => {
   await registerRoutes(httpServer, app);
 
-  // Error handler (same as your server/index.ts)
+  // error handler
   app.use((err: any, _req: Request, res: any, next: any) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
