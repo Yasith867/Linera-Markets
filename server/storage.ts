@@ -17,10 +17,7 @@ import { eq, desc, and } from "drizzle-orm";
 function parseUser(u: User): User {
   return {
     ...u,
-    holdings:
-      typeof u.holdings === "string"
-        ? JSON.parse(u.holdings)
-        : u.holdings,
+    holdings: typeof u.holdings === "string" ? JSON.parse(u.holdings) : u.holdings,
   };
 }
 
@@ -30,11 +27,7 @@ export class DatabaseStorage {
   ========================= */
 
   async getOrCreateUser(address: string): Promise<User> {
-    const [existing] = await db
-      .select()
-      .from(users)
-      .where(eq(users.address, address));
-
+    const [existing] = await db.select().from(users).where(eq(users.address, address));
     if (existing) return parseUser(existing);
 
     const [user] = await db
@@ -51,11 +44,7 @@ export class DatabaseStorage {
   }
 
   async getUser(address: string): Promise<User | undefined> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.address, address));
-
+    const [user] = await db.select().from(users).where(eq(users.address, address));
     return user ? parseUser(user) : undefined;
   }
 
@@ -64,11 +53,7 @@ export class DatabaseStorage {
   ========================= */
 
   async getMarkets(): Promise<any[]> {
-    const all = await db
-      .select()
-      .from(markets)
-      .orderBy(desc(markets.createdAt));
-
+    const all = await db.select().from(markets).orderBy(desc(markets.createdAt));
     const opts = await db.select().from(marketOptions);
     const pos = await db.select().from(positions);
 
@@ -80,22 +65,11 @@ export class DatabaseStorage {
   }
 
   async getMarket(id: number): Promise<any | null> {
-    const [m] = await db
-      .select()
-      .from(markets)
-      .where(eq(markets.id, id));
-
+    const [m] = await db.select().from(markets).where(eq(markets.id, id));
     if (!m) return null;
 
-    const opts = await db
-      .select()
-      .from(marketOptions)
-      .where(eq(marketOptions.marketId, id));
-
-    const pos = await db
-      .select()
-      .from(positions)
-      .where(eq(positions.marketId, id));
+    const opts = await db.select().from(marketOptions).where(eq(marketOptions.marketId, id));
+    const pos = await db.select().from(positions).where(eq(positions.marketId, id));
 
     return {
       ...m,
@@ -129,7 +103,6 @@ export class DatabaseStorage {
           totalStaked: "0",
         })
         .returning();
-
       opts.push(o);
     }
 
@@ -140,14 +113,20 @@ export class DatabaseStorage {
      POSITIONS
   ========================= */
 
+  // ✅ ADDED: needed by server/routes.ts
+  async getUserPositions(userAddress: string): Promise<Position[]> {
+    return await db
+      .select()
+      .from(positions)
+      .where(eq(positions.userAddress, userAddress))
+      .orderBy(desc(positions.id));
+  }
+
   async createPosition(data: any): Promise<Position> {
     const market = await this.getMarket(data.marketId);
     if (!market) throw new Error("Market not found");
 
-    const isOpen =
-      market.status === "open" &&
-      new Date(market.closeTime) > new Date();
-
+    const isOpen = market.status === "open" && new Date(market.closeTime) > new Date();
     if (!isOpen) throw new Error("Market is closed");
 
     const user = await this.getUser(data.userAddress);
@@ -155,9 +134,7 @@ export class DatabaseStorage {
       throw new Error("Insufficient balance");
     }
 
-    const newBalance = (
-      Number(user.balance) - Number(data.amount)
-    ).toFixed(6);
+    const newBalance = (Number(user.balance) - Number(data.amount)).toFixed(6);
 
     await db
       .update(users)
@@ -176,36 +153,18 @@ export class DatabaseStorage {
       })
       .returning();
 
-    const [o] = await db
-      .select()
-      .from(marketOptions)
-      .where(eq(marketOptions.id, data.optionId));
+    const [o] = await db.select().from(marketOptions).where(eq(marketOptions.id, data.optionId));
 
     if (o) {
-      const newTotal = (
-        Number(o.totalStaked) + Number(data.amount)
-      ).toFixed(6);
-
-      await db
-        .update(marketOptions)
-        .set({ totalStaked: newTotal })
-        .where(eq(marketOptions.id, data.optionId));
+      const newTotal = (Number(o.totalStaked) + Number(data.amount)).toFixed(6);
+      await db.update(marketOptions).set({ totalStaked: newTotal }).where(eq(marketOptions.id, data.optionId));
     }
 
-    const [m] = await db
-      .select()
-      .from(markets)
-      .where(eq(markets.id, data.marketId));
+    const [m] = await db.select().from(markets).where(eq(markets.id, data.marketId));
 
     if (m) {
-      const newLiquidity = (
-        Number(m.totalLiquidity) + Number(data.amount)
-      ).toFixed(6);
-
-      await db
-        .update(markets)
-        .set({ totalLiquidity: newLiquidity })
-        .where(eq(markets.id, data.marketId));
+      const newLiquidity = (Number(m.totalLiquidity) + Number(data.amount)).toFixed(6);
+      await db.update(markets).set({ totalLiquidity: newLiquidity }).where(eq(markets.id, data.marketId));
     }
 
     return p;
@@ -222,17 +181,13 @@ export class DatabaseStorage {
       .where(eq(markets.id, marketId))
       .returning();
 
-    const marketPositions = await db
-      .select()
-      .from(positions)
-      .where(eq(positions.marketId, marketId));
+    const marketPositions = await db.select().from(positions).where(eq(positions.marketId, marketId));
 
     for (const pos of marketPositions) {
       await db
         .update(positions)
         .set({
-          status:
-            pos.optionId === winningOptionId ? "won" : "lost",
+          status: pos.optionId === winningOptionId ? "won" : "lost",
           settledAt: new Date(),
         })
         .where(eq(positions.id, pos.id));
@@ -241,10 +196,7 @@ export class DatabaseStorage {
     return m;
   }
 
-  async claimPayout(
-    marketId: number,
-    userAddress: string
-  ): Promise<string> {
+  async claimPayout(marketId: number, userAddress: string): Promise<string> {
     const market = await this.getMarket(marketId);
     if (!market || market.status !== "resolved") {
       throw new Error("Market not resolved");
@@ -257,22 +209,18 @@ export class DatabaseStorage {
         and(
           eq(positions.marketId, marketId),
           eq(positions.userAddress, userAddress),
-          eq(positions.claimed, false)
-        )
+          eq(positions.claimed, false),
+        ),
       );
 
     if (userPositions.length === 0) {
       throw new Error("No unclaimed positions found");
     }
 
-    const winners = userPositions.filter(
-      (p) => p.optionId === market.winningOptionId
-    );
+    const winners = userPositions.filter((p) => p.optionId === market.winningOptionId);
 
     const totalPool = Number(market.totalLiquidity);
-    const winningOption = market.options.find(
-      (o: any) => o.id === market.winningOptionId
-    );
+    const winningOption = market.options.find((o: any) => o.id === market.winningOptionId);
     const winningPool = Number(winningOption?.totalStaked || 1);
 
     let payoutTotal = 0;
@@ -281,36 +229,22 @@ export class DatabaseStorage {
     }
 
     for (const p of userPositions) {
-      await db
-        .update(positions)
-        .set({ claimed: true })
-        .where(eq(positions.id, p.id));
+      await db.update(positions).set({ claimed: true }).where(eq(positions.id, p.id));
     }
 
     const user = await this.getOrCreateUser(userAddress);
-    const newBalance = (
-      Number(user.balance) + payoutTotal
-    ).toFixed(6);
+    const newBalance = (Number(user.balance) + payoutTotal).toFixed(6);
 
-    await db
-      .update(users)
-      .set({ balance: newBalance })
-      .where(eq(users.address, userAddress));
+    await db.update(users).set({ balance: newBalance }).where(eq(users.address, userAddress));
 
     return payoutTotal.toFixed(6);
   }
 
   async deleteMarket(id: number): Promise<boolean> {
     await db.delete(positions).where(eq(positions.marketId, id));
-    await db
-      .delete(marketOptions)
-      .where(eq(marketOptions.marketId, id));
+    await db.delete(marketOptions).where(eq(marketOptions.marketId, id));
 
-    const [deleted] = await db
-      .delete(markets)
-      .where(eq(markets.id, id))
-      .returning();
-
+    const [deleted] = await db.delete(markets).where(eq(markets.id, id)).returning();
     return !!deleted;
   }
 }
