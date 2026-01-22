@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import express, { type Request } from "express";
 import { createServer } from "http";
 
-// Load dotenv only locally (MUST happen before importing routes/db)
+// Load dotenv only locally (Vercel already provides env vars)
 if (process.env.NODE_ENV !== "production") {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   require("dotenv/config");
@@ -25,7 +25,6 @@ app.use(
     },
   }),
 );
-
 app.use(express.urlencoded({ extended: false }));
 
 let readyPromise: Promise<express.Express> | null = null;
@@ -33,12 +32,17 @@ let readyPromise: Promise<express.Express> | null = null;
 async function getReadyApp() {
   if (!readyPromise) {
     readyPromise = (async () => {
-      // IMPORTANT: import routes AFTER dotenv has been loaded
+      // IMPORTANT: import routes AFTER dotenv/config (and after env exists)
       const { registerRoutes } = await import("../server/routes");
 
       await registerRoutes(httpServer as any, app);
 
-      // error handler
+      // ✅ quick health check to verify the function is hit
+      app.get("/api/health", (_req, res) => {
+        res.json({ ok: true, hasDbUrl: !!process.env.DATABASE_URL });
+      });
+
+      // error handler (JSON, never HTML)
       app.use((err: any, _req: Request, res: any, next: any) => {
         const status = err.status || err.statusCode || 500;
         const message = err.message || "Internal Server Error";
