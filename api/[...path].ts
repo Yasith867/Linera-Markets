@@ -1,9 +1,8 @@
-// api/[...path].ts
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import express, { type Request } from "express";
 import { createServer } from "http";
 
-// Load dotenv only locally (Vercel already provides env vars)
+// Load dotenv only locally
 if (process.env.NODE_ENV !== "production") {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   require("dotenv/config");
@@ -25,24 +24,18 @@ app.use(
     },
   }),
 );
+
 app.use(express.urlencoded({ extended: false }));
 
-let readyPromise: Promise<express.Express> | null = null;
+let readyPromise: Promise<any> | null = null;
 
 async function getReadyApp() {
   if (!readyPromise) {
     readyPromise = (async () => {
-      // IMPORTANT: import routes AFTER dotenv/config (and after env exists)
       const { registerRoutes } = await import("../server/routes");
-
       await registerRoutes(httpServer as any, app);
 
-      // ✅ quick health check to verify the function is hit
-      app.get("/api/health", (_req, res) => {
-        res.json({ ok: true, hasDbUrl: !!process.env.DATABASE_URL });
-      });
-
-      // error handler (JSON, never HTML)
+      // error handler (ensures JSON errors)
       app.use((err: any, _req: Request, res: any, next: any) => {
         const status = err.status || err.statusCode || 500;
         const message = err.message || "Internal Server Error";
@@ -58,6 +51,13 @@ async function getReadyApp() {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // ✅ normalize path so Express routes using "/api/..." always match
+  // If Vercel gives "/wallet/faucet", we convert it to "/api/wallet/faucet"
+  const url = req.url || "/";
+  if (!url.startsWith("/api/")) {
+    req.url = "/api" + (url.startsWith("/") ? "" : "/") + url;
+  }
+
   const expressApp = await getReadyApp();
   return (expressApp as any)(req, res);
 }
