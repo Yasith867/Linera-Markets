@@ -1,12 +1,12 @@
-// Load .env only in local development (Vercel provides env vars in production)
+// server/index.ts
+import dotenv from "dotenv";
+
+// Load env vars before importing anything that might touch process.env
 if (process.env.NODE_ENV !== "production") {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  require("dotenv/config");
+  dotenv.config({ path: ".env" });
 }
 
 import express, { type Request, type Response, type NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
@@ -62,6 +62,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // IMPORTANT: import routes AFTER dotenv has loaded
+  const { registerRoutes } = await import("./routes");
+  const { serveStatic } = await import("./static");
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
